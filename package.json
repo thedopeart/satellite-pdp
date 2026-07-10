@@ -1,0 +1,21 @@
+{
+  "name": "@dopeart/satellite-pdp",
+  "version": "0.1.0",
+  "description": "Shared product detail page template, data layer, and product components for the satellite art sites",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thedopeart/satellite-pdp.git"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./components/*": "./src/components/*",
+    "./pdp/*": "./src/pdp/*"
+  },
+  "peerDependencies": {
+    "next": ">=15",
+    "react": ">=19",
+    "react-dom": ">=19"
+  }
+}
