@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
 interface ProductGalleryProps {
@@ -12,6 +12,20 @@ interface ProductGalleryProps {
 
 export default function ProductGallery({ images, primaryAlt, title }: ProductGalleryProps) {
   const [active, setActive] = useState(0);
+  const [zoomed, setZoomed] = useState(false);
+
+  useEffect(() => {
+    if (!zoomed) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setZoomed(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [zoomed]);
 
   if (images.length === 0) {
     return <div className="aspect-square bg-[var(--surface)]" />;
@@ -23,17 +37,23 @@ export default function ProductGallery({ images, primaryAlt, title }: ProductGal
 
   return (
     <div>
-      <div className="aspect-square bg-[var(--surface)] overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setZoomed(true)}
+        aria-label={`Zoom into ${title}`}
+        className="block w-full aspect-square bg-[var(--surface)] overflow-hidden cursor-zoom-in"
+      >
         <Image
           src={current.src}
           alt={altFor(current, active)}
-          width={900}
-          height={900}
+          width={1100}
+          height={1100}
           priority
           className="w-full h-full object-cover"
-          sizes="(max-width: 768px) 100vw, 50vw"
+          sizes="(max-width: 768px) 100vw, 55vw"
         />
-      </div>
+      </button>
+
       {images.length > 1 && (
         <div className="mt-3 grid grid-cols-5 gap-2">
           {images.slice(0, 5).map((img, i) => (
@@ -57,6 +77,30 @@ export default function ProductGallery({ images, primaryAlt, title }: ProductGal
               />
             </button>
           ))}
+        </div>
+      )}
+
+      {zoomed && (
+        <div
+          role="dialog"
+          aria-label={`${title} enlarged`}
+          onClick={() => setZoomed(false)}
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={current.src}
+            alt={altFor(current, active)}
+            className="max-w-full max-h-full object-contain"
+          />
+          <button
+            type="button"
+            onClick={() => setZoomed(false)}
+            aria-label="Close zoom"
+            className="absolute top-4 right-5 text-white/90 text-3xl leading-none"
+          >
+            &times;
+          </button>
         </div>
       )}
     </div>

@@ -1,9 +1,18 @@
 import Link from 'next/link';
-import type { CardStyles, CollectionRef, PdpContent, SatelliteProduct, SiteMeta } from '../types';
+import type {
+  CardStyles,
+  CollectionRef,
+  PdpContent,
+  RelatedPostRef,
+  SatelliteProduct,
+  SiteDetails,
+  SiteMeta,
+} from '../types';
 import { productBreadcrumbJsonLd, productFaqJsonLd, productJsonLd } from '../jsonld';
 import JsonLd from '../components/JsonLd';
 import ProductGallery from '../components/ProductGallery';
 import ProductCard from '../components/ProductCard';
+import SizeSelect from '../components/SizeSelect';
 import AnimateIn from '../components/AnimateIn';
 
 export interface ProductPageProps {
@@ -16,16 +25,11 @@ export interface ProductPageProps {
   relatedProducts: SatelliteProduct[];
   /** The site's own collections, used to resolve handles to titles for internal links */
   collections: CollectionRef[];
+  /** Site-level Materials / Sizes / Shipping facts (reuse the site's existing boilerplate) */
+  details?: SiteDetails;
+  /** Site blog posts related to this product's collections */
+  relatedPosts?: RelatedPostRef[];
   cardStyles?: CardStyles;
-}
-
-function uniqueSizes(product: SatelliteProduct): string[] {
-  const seen = new Set<string>();
-  for (const v of product.variants) {
-    const t = v.title.trim();
-    if (t && t.toLowerCase() !== 'default title') seen.add(t);
-  }
-  return Array.from(seen);
 }
 
 function lowestPrice(product: SatelliteProduct): string {
@@ -37,9 +41,9 @@ function lowestPrice(product: SatelliteProduct): string {
 
 /**
  * Shared satellite product detail page.
- * Self-canonical (via buildProductMetadata), niche content from the content
- * layer, live price/size/image data from the parent store, internal links to
- * the site's own collections, and an outbound buy CTA to the parent store.
+ * Self-canonical, niche content from the content layer, live price/size/image
+ * data from the parent store, internal links to the site's own collections and
+ * blog, and an outbound buy CTA to the parent store.
  */
 export default function ProductPage({
   site,
@@ -48,6 +52,8 @@ export default function ProductPage({
   purchaseUrl,
   relatedProducts,
   collections,
+  details,
+  relatedPosts = [],
   cardStyles,
 }: ProductPageProps) {
   const byHandle = new Map(collections.map((c) => [c.handle, c]));
@@ -58,10 +64,13 @@ export default function ProductPage({
     .map((h) => byHandle.get(h))
     .filter((c): c is CollectionRef => Boolean(c));
 
-  const sizes = uniqueSizes(product);
   const fromPrice = lowestPrice(product);
   const introParagraphs = content.intro.split('\n\n').map((p) => p.trim()).filter(Boolean);
   const faqSchema = productFaqJsonLd(content);
+
+  // Long-form body text uses the site's main foreground color: muted palettes
+  // (olive on brown etc.) fail contrast on paragraph-length text.
+  const bodyText = 'text-[15px] leading-relaxed text-[var(--foreground)] opacity-90';
 
   return (
     <>
@@ -90,8 +99,8 @@ export default function ProductPage({
           <span className="text-[var(--text-muted)]">{product.title}</span>
         </nav>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
-          {/* Left: gallery */}
+        <div className="grid grid-cols-1 md:grid-cols-[1.15fr_1fr] gap-10 lg:gap-16">
+          {/* Left: gallery (dominant) */}
           <ProductGallery
             images={product.images}
             primaryAlt={content.imageAlt}
@@ -116,27 +125,13 @@ export default function ProductPage({
             {/* Niche intro (unique per product per site) */}
             <div className="space-y-4 mb-8">
               {introParagraphs.map((para, i) => (
-                <p key={i} className="text-[15px] leading-relaxed text-[var(--text-muted)]">
+                <p key={i} className={bodyText}>
                   {para}
                 </p>
               ))}
             </div>
 
-            {sizes.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-sm font-medium mb-3">Available sizes</h2>
-                <div className="flex flex-wrap gap-2">
-                  {sizes.map((size) => (
-                    <span
-                      key={size}
-                      className="px-3 py-1.5 border border-[var(--border)] text-xs tracking-wide"
-                    >
-                      {size}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            <SizeSelect variants={product.variants} />
 
             {/* Buy CTA: purchase happens on the parent store */}
             <a
@@ -151,7 +146,25 @@ export default function ProductPage({
               Checkout, shipping, and returns are handled by {site.parentLabel}.
             </p>
 
-            {relatedCollections.length > 0 && (
+            {/* Site-level product facts */}
+            {details && (
+              <div className="mt-10 pt-8 border-t border-[var(--border)] space-y-4">
+                <div>
+                  <h2 className="text-sm font-medium mb-1.5">Materials</h2>
+                  <p className={bodyText}>{details.materials}</p>
+                </div>
+                <div>
+                  <h2 className="text-sm font-medium mb-1.5">Sizes</h2>
+                  <p className={bodyText}>{details.sizes}</p>
+                </div>
+                <div>
+                  <h2 className="text-sm font-medium mb-1.5">Shipping</h2>
+                  <p className={bodyText}>{details.shipping}</p>
+                </div>
+              </div>
+            )}
+
+            {(relatedCollections.length > 0 || relatedPosts.length > 0) && (
               <div className="mt-10 pt-8 border-t border-[var(--border)]">
                 <h2 className="text-sm font-medium mb-3">On this site</h2>
                 <ul className="space-y-2">
@@ -165,6 +178,16 @@ export default function ProductPage({
                       </Link>
                     </li>
                   ))}
+                  {relatedPosts.map((p) => (
+                    <li key={p.slug}>
+                      <Link
+                        href={`/blog/${p.slug}`}
+                        className="text-sm underline underline-offset-4 hover:text-[var(--text-muted)] transition-colors"
+                      >
+                        {p.title}
+                      </Link>
+                    </li>
+                  ))}
                 </ul>
               </div>
             )}
@@ -172,17 +195,46 @@ export default function ProductPage({
         </div>
       </section>
 
-      {/* FAQ (unique per product per site) */}
+      {/* About this piece (unique long-tail content, HTML-lite from the content layer) */}
+      {content.about && (
+        <section className="mx-auto max-w-3xl px-6 pb-12 md:pb-16">
+          <AnimateIn>
+            <h2 className="text-2xl font-light mb-6">About this piece</h2>
+            <div
+              className={`${bodyText} space-y-4 [&_a]:underline [&_a]:underline-offset-4`}
+              dangerouslySetInnerHTML={{
+                __html: content.about
+                  .split('\n\n')
+                  .map((p) => `<p>${p.trim()}</p>`)
+                  .join(''),
+              }}
+            />
+          </AnimateIn>
+        </section>
+      )}
+
+      {/* FAQ accordion (unique per product per site; native details = crawlable) */}
       {content.faqs.length > 0 && (
         <section className="mx-auto max-w-3xl px-6 pb-12 md:pb-16">
           <AnimateIn>
-            <h2 className="text-2xl font-light mb-8">Common questions</h2>
-            <div className="space-y-6">
+            <h2 className="text-2xl font-light mb-6">Common questions</h2>
+            <div>
               {content.faqs.map((faq) => (
-                <div key={faq.question} className="border-b border-[var(--border)] pb-6">
-                  <h3 className="text-sm font-medium mb-2">{faq.question}</h3>
-                  <p className="text-sm text-[var(--text-muted)] leading-relaxed">{faq.answer}</p>
-                </div>
+                <details
+                  key={faq.question}
+                  className="group border-b border-[var(--border)] py-4"
+                >
+                  <summary className="flex items-center justify-between gap-4 cursor-pointer list-none text-sm font-medium">
+                    {faq.question}
+                    <span
+                      aria-hidden
+                      className="shrink-0 text-[var(--text-muted)] transition-transform duration-200 group-open:rotate-45 text-lg leading-none"
+                    >
+                      +
+                    </span>
+                  </summary>
+                  <p className={`${bodyText} pt-3`}>{faq.answer}</p>
+                </details>
               ))}
             </div>
           </AnimateIn>
@@ -199,7 +251,7 @@ export default function ProductPage({
               </h2>
             </AnimateIn>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
-              {relatedProducts.slice(0, 4).map((p) => (
+              {relatedProducts.slice(0, 8).map((p) => (
                 <ProductCard key={p.id} product={p} styles={cardStyles} />
               ))}
             </div>

@@ -97,6 +97,25 @@ export interface PdpContent {
   imageAlt: string;
   /** Site-local collection handles to link to from this page (validated at generation time) */
   relatedCollections: string[];
+  /**
+   * Optional "About this piece" section. HTML-lite: only <strong> and <a> with
+   * site-internal hrefs (/collections/... or /blog/...) are allowed; the lint
+   * gate enforces this. Long-tail keyword bolds live here.
+   */
+  about?: string;
+}
+
+/** Site-level product facts shown in the Details block (reuse the site's existing boilerplate copy). */
+export interface SiteDetails {
+  materials: string;
+  sizes: string;
+  shipping: string;
+}
+
+/** A blog post link shown in the "From the blog" section. */
+export interface RelatedPostRef {
+  slug: string;
+  title: string;
 }
 
 export type PdpContentMap = Record<string, PdpContent>;

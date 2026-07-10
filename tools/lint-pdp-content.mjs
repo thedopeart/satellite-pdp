@@ -7,15 +7,20 @@
 
 import { readFileSync } from 'node:fs';
 
-const [contentPath, catalogPath, validHandlesCsv] = process.argv.slice(2);
+const [contentPath, catalogPath, validHandlesCsv, validBlogSlugsCsv] = process.argv.slice(2);
 if (!contentPath || !catalogPath || !validHandlesCsv) {
-  console.error('Usage: node lint-pdp-content.mjs <content.json> <catalog.json> <validCollectionHandles,csv>');
+  console.error('Usage: node lint-pdp-content.mjs <content.json> <catalog.json> <validCollectionHandles,csv> [validBlogSlugs,csv]');
   process.exit(2);
 }
 
 const entries = JSON.parse(readFileSync(contentPath, 'utf8'));
 const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'));
 const validCollections = new Set(validHandlesCsv.split(','));
+const validBlogSlugs = new Set((validBlogSlugsCsv ?? '').split(',').filter(Boolean));
+
+function stripTags(s) {
+  return (s ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
 const catalogByHandle = new Map(catalog.map((p) => [p.handle, p]));
 
 const BANNED = new RegExp(
@@ -45,7 +50,7 @@ function ngrams(s, n) {
 }
 
 function textOf(e) {
-  return [e.intro, ...(e.faqs ?? []).flatMap((f) => [f.question, f.answer])].join('\n');
+  return [e.intro, stripTags(e.about), ...(e.faqs ?? []).flatMap((f) => [f.question, f.answer])].join('\n');
 }
 
 const failures = [];
@@ -61,8 +66,26 @@ const seenFaqQuestions = new Map();
 
 for (const e of entries) {
   const h = e.handle;
-  const all = [e.seoTitle, e.metaDescription, e.ogTitle, e.ogDescription, e.intro, e.imageAlt,
+  const all = [e.seoTitle, e.metaDescription, e.ogTitle, e.ogDescription, e.intro, e.imageAlt, stripTags(e.about),
     ...(e.faqs ?? []).flatMap((f) => [f.question, f.answer])].filter(Boolean).join('\n');
+
+  // about: HTML-lite validation
+  if (e.about) {
+    const aw = words(stripTags(e.about)).length;
+    if (aw < 50 || aw > 160) fail(h, 'about-length', `${aw} words (50-160)`);
+    for (const tag of e.about.match(/<[^>]+>/g) ?? []) {
+      if (!/^<\/?strong>$/.test(tag) && !/^<a href="\/(collections|blog)\/[a-z0-9-]+">$/.test(tag) && tag !== '</a>') {
+        fail(h, 'about-html', `disallowed tag: ${tag}`);
+      }
+    }
+    for (const m of e.about.matchAll(/href="\/collections\/([a-z0-9-]+)"/g)) {
+      if (!validCollections.has(m[1])) fail(h, 'about-link', `unknown collection "${m[1]}"`);
+    }
+    for (const m of e.about.matchAll(/href="\/blog\/([a-z0-9-]+)"/g)) {
+      if (validBlogSlugs.size && !validBlogSlugs.has(m[1])) fail(h, 'about-link', `unknown blog slug "${m[1]}"`);
+    }
+    if (!/<strong>/.test(e.about)) fail(h, 'about-keywords', 'no <strong> keyword bolds present');
+  }
 
   if (!catalogByHandle.has(h)) fail(h, 'handle', 'not in live catalog dump');
   if (/[–—]/.test(all)) fail(h, 'dashes', 'em or en dash found');

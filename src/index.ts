@@ -3,6 +3,8 @@ export type {
   ProductVariant,
   SiteAdapter,
   SiteMeta,
+  SiteDetails,
+  RelatedPostRef,
   PdpContent,
   PdpContentMap,
   CardStyles,
