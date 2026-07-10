@@ -68,6 +68,10 @@ export default function ProductPage({
   const introParagraphs = content.intro.split('\n\n').map((p) => p.trim()).filter(Boolean);
   const faqSchema = productFaqJsonLd(content);
 
+  // Prefer related products that have their own local page (internal links
+  // beat outbound ones for the interlinking this template exists to build).
+  const sortedRelated = [...relatedProducts].sort((a, b) => Number(a.external) - Number(b.external));
+
   // Long-form body text uses the site's main foreground color: muted palettes
   // (olive on brown etc.) fail contrast on paragraph-length text.
   const bodyText = 'text-[15px] leading-relaxed text-[var(--foreground)] opacity-90';
@@ -251,7 +255,7 @@ export default function ProductPage({
               </h2>
             </AnimateIn>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
-              {relatedProducts.slice(0, 8).map((p) => (
+              {sortedRelated.slice(0, 8).map((p) => (
                 <ProductCard key={p.id} product={p} styles={cardStyles} />
               ))}
             </div>
