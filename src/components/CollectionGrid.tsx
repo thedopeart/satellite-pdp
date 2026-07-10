@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import ProductCard from './ProductCard';
 import type { CardStyles, SatelliteProduct } from '../types';
 
@@ -11,24 +11,10 @@ interface CollectionGridProps {
   cardStyles?: CardStyles;
 }
 
-function SkeletonCard() {
-  return (
-    <div>
-      <div className="aspect-square skeleton rounded mb-4" />
-      <div className="h-4 skeleton rounded w-3/4 mb-2" />
-      <div className="h-3 skeleton rounded w-1/3" />
-    </div>
-  );
-}
-
+// Cards render in the initial server HTML (no skeleton delay): the grid's
+// internal product links must be crawlable, and this is faster for users too.
 export default function CollectionGrid({ products, cardStyles }: CollectionGridProps) {
   const [visible, setVisible] = useState(PAGE_SIZE);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setLoaded(true), 400);
-    return () => clearTimeout(timer);
-  }, []);
 
   if (products.length === 0) {
     return (
@@ -40,16 +26,6 @@ export default function CollectionGrid({ products, cardStyles }: CollectionGridP
 
   const shown = products.slice(0, visible);
   const hasMore = visible < products.length;
-
-  if (!loaded) {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
-        {Array.from({ length: Math.min(PAGE_SIZE, products.length) }).map((_, i) => (
-          <SkeletonCard key={i} />
-        ))}
-      </div>
-    );
-  }
 
   return (
     <>

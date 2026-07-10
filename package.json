@@ -1,6 +1,6 @@
 {
   "name": "@dopeart/satellite-pdp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared product detail page template, data layer, and product components for the satellite art sites",
   "license": "UNLICENSED",
   "repository": {
