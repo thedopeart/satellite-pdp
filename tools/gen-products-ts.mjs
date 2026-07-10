@@ -32,7 +32,7 @@ import { pdpContent } from '@/content/pdp-content';
 export type Product = SatelliteProduct;
 
 function fallback(
-  p: Omit<SatelliteProduct, 'images' | 'variants' | 'tags' | 'url' | 'external' | 'secondImage' | 'compareAtPrice'>,
+  p: Omit<SatelliteProduct, 'images' | 'variants' | 'tags' | 'url' | 'external'>,
 ): SatelliteProduct {
   return {
     ...p,
