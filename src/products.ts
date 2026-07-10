@@ -50,25 +50,54 @@ export function createProductSource(
     try {
       const allProducts = new Map<string, SatelliteProduct>();
 
-      for (const collectionId of adapter.sourceCollectionIds) {
-        const shopifyProducts = await fetchAllProductsFromCollection(adapter, collectionId);
+      if (adapter.classifyBy === 'collections' && adapter.collectionMap) {
+        // Membership mode: each local handle maps directly to its source collection(s)
+        for (const [localHandle, idOrIds] of Object.entries(adapter.collectionMap)) {
+          const collectionIds = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+          for (const collectionId of collectionIds) {
+            const shopifyProducts = await fetchAllProductsFromCollection(adapter, collectionId);
 
-        for (const sp of shopifyProducts) {
-          if (allProducts.has(String(sp.id))) continue;
+            for (const sp of shopifyProducts) {
+              const tags = sp.tags
+                .split(',')
+                .map((t) => t.trim().toLowerCase())
+                .filter(Boolean);
+              if (isExcluded(adapter, new Set(tags))) continue;
 
-          const tags = sp.tags
-            .split(',')
-            .map((t) => t.trim().toLowerCase())
-            .filter(Boolean);
-          const tagSet = new Set(tags);
+              const existing = allProducts.get(String(sp.id));
+              if (existing) {
+                if (!existing.collectionHandles.includes(localHandle)) {
+                  existing.collectionHandles.push(localHandle);
+                }
+                continue;
+              }
 
-          if (isExcluded(adapter, tagSet)) continue;
+              const hasPdp = Boolean(content[sp.handle]);
+              allProducts.set(String(sp.id), mapShopifyProduct(adapter, sp, [localHandle], tags, hasPdp));
+            }
+          }
+        }
+      } else {
+        for (const collectionId of adapter.sourceCollectionIds) {
+          const shopifyProducts = await fetchAllProductsFromCollection(adapter, collectionId);
 
-          const localHandles = classifyProduct(adapter, tagSet);
-          if (localHandles.length === 0) continue;
+          for (const sp of shopifyProducts) {
+            if (allProducts.has(String(sp.id))) continue;
 
-          const hasPdp = Boolean(content[sp.handle]);
-          allProducts.set(String(sp.id), mapShopifyProduct(adapter, sp, localHandles, tags, hasPdp));
+            const tags = sp.tags
+              .split(',')
+              .map((t) => t.trim().toLowerCase())
+              .filter(Boolean);
+            const tagSet = new Set(tags);
+
+            if (isExcluded(adapter, tagSet)) continue;
+
+            const localHandles = classifyProduct(adapter, tagSet);
+            if (localHandles.length === 0) continue;
+
+            const hasPdp = Boolean(content[sp.handle]);
+            allProducts.set(String(sp.id), mapShopifyProduct(adapter, sp, localHandles, tags, hasPdp));
+          }
         }
       }
 
@@ -86,7 +115,8 @@ export function createProductSource(
 
     async getProductsByCollection(collectionHandle: string) {
       const products = await fetchAllProducts();
-      return products.filter((p) => p.collectionHandles.includes(collectionHandle));
+      const matched = products.filter((p) => p.collectionHandles.includes(collectionHandle));
+      return adapter.gridCap ? matched.slice(0, adapter.gridCap) : matched;
     },
 
     async getFeaturedProducts(count = 8) {

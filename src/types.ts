@@ -46,10 +46,20 @@ export interface SiteAdapter {
   store: string;
   /** Parent storefront domain used for purchase links, e.g. "luxurywallart.com" */
   parentDomain: string;
-  /** Shopify numeric collection ids to pull products from (site.config shopifyCollections) */
+  /** Shopify numeric collection ids to pull products from (tags mode; site.config shopifyCollections) */
   sourceCollectionIds: number[];
-  /** Tag rules: site-local collection handle -> parent-store tags that map into it */
+  /** Tag rules: site-local collection handle -> parent-store tags that map into it (tags mode) */
   tagRules: Record<string, string[]>;
+  /**
+   * Classification mode. 'tags' (default): fetch sourceCollectionIds, classify by tagRules.
+   * 'collections': each local handle maps 1:1 to its source Shopify collection(s)
+   * via collectionMap; membership IS the classification (the 2026-07 converted sites).
+   */
+  classifyBy?: 'tags' | 'collections';
+  /** collections mode: site-local handle -> source Shopify collection id(s) */
+  collectionMap?: Record<string, number | number[]>;
+  /** Optional cap on products returned per local collection (wallartformen grid cap) */
+  gridCap?: number;
   /** When no tag rule matches, assign the product to ALL local collections (bankruptsaint behavior) */
   fallbackAllOnNoMatch?: boolean;
   /** Products carrying any of these tags are excluded entirely. Default: ["sveta"] */
