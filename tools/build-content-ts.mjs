@@ -10,7 +10,16 @@ if (!contentPath || !outPath) {
 
 const entries = JSON.parse(readFileSync(contentPath, 'utf8'));
 const map = {};
-for (const e of entries) map[e.handle] = e;
+// Only these keys exist on PdpContent; strip anything a generator/repair pass
+// may have added (e.g. a stray "title") so the emitted TS typechecks.
+const ALLOWED = new Set([
+  'handle', 'seoTitle', 'metaDescription', 'ogTitle', 'ogDescription',
+  'intro', 'faqs', 'imageAlt', 'relatedCollections', 'about',
+]);
+for (const e of entries) {
+  for (const k of Object.keys(e)) if (!ALLOWED.has(k)) delete e[k];
+  map[e.handle] = e;
+}
 
 const header = `import type { PdpContentMap } from '@dopeart/satellite-pdp';
 
