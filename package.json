@@ -10,8 +10,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./components/*": "./src/components/*",
-    "./pdp/*": "./src/pdp/*"
+    "./components/*": "./src/components/*.tsx",
+    "./pdp/*": "./src/pdp/*.tsx"
   },
   "peerDependencies": {
     "next": ">=15",
