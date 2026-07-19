@@ -22,8 +22,16 @@ function getToken(adapter: SiteAdapter): string {
   return token;
 }
 
-// Fetch with retry on 429 rate limits (honors Retry-After, exponential backoff)
-async function fetchWithRetry(url: string, token: string, maxRetries = 8): Promise<Response> {
+// Fetch with retry on 429 rate limits.
+//
+// Backoff takes the LONGER of Shopify's Retry-After and our own exponential
+// curve. Honoring Retry-After alone is a trap: Shopify answers a rate-limited
+// REST call with "Retry-After: 2.0" every time, so the retry schedule flattens
+// to ~2s and the whole budget drains in seconds. That is fine for one client,
+// but a Next static build runs N worker processes that EACH pull the full
+// catalog, so the burst is N x pages against a 2 req/s sustained bucket and
+// needs tens of seconds to clear, not a handful.
+async function fetchWithRetry(url: string, token: string, maxRetries = 10): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     const res: Response = await fetch(url, {
       headers: { 'X-Shopify-Access-Token': token },
@@ -31,8 +39,10 @@ async function fetchWithRetry(url: string, token: string, maxRetries = 8): Promi
     });
 
     if (res.status === 429 && attempt < maxRetries) {
-      const retryAfter = Number(res.headers.get('Retry-After')) || 2 ** attempt;
-      await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000 + Math.random() * 1500));
+      const retryAfter = Number(res.headers.get('Retry-After')) || 0;
+      const backoff = Math.min(2 ** attempt, 30); // cap so a build cannot stall forever
+      const waitSeconds = Math.max(retryAfter, backoff);
+      await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000 + Math.random() * 1500));
       continue;
     }
 
