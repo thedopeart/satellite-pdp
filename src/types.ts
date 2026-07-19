@@ -90,6 +90,14 @@ export interface SiteAdapter {
    * MIN-COUNT warning (or fails when SATELLITE_MIN_COUNT_STRICT=1). Default: 12.
    */
   minCollectionCount?: number;
+  /**
+   * Per-local-collection curation on top of collection membership (collections
+   * mode): a product joins the local handle only if it carries at least one
+   * requireAnyTags tag (when set) and none of the excludeTags. Parent-store
+   * smart collections are often broader than a satellite niche (LWA
+   * "portrait-art" includes animal portraits); this trims them to theme.
+   */
+  collectionRefine?: Record<string, { requireAnyTags?: string[]; excludeTags?: string[] }>;
 }
 
 /** Minimal site identity the PDP renderer and metadata builder need. */

@@ -111,12 +111,23 @@ export function createProductSource(
           for (const collectionId of collectionIds) {
             const shopifyProducts = await fetchAllProductsFromCollection(adapter, collectionId);
 
+            const refine = adapter.collectionRefine?.[localHandle];
             for (const sp of shopifyProducts) {
               const tags = sp.tags
                 .split(',')
                 .map((t) => t.trim().toLowerCase())
                 .filter(Boolean);
               if (isExcluded(adapter, new Set(tags))) continue;
+              if (refine) {
+                const tagSet = new Set(tags);
+                if (refine.excludeTags?.some((t) => tagSet.has(t.toLowerCase()))) continue;
+                if (
+                  refine.requireAnyTags &&
+                  !refine.requireAnyTags.some((t) => tagSet.has(t.toLowerCase()))
+                ) {
+                  continue;
+                }
+              }
 
               const existing = allProducts.get(String(sp.id));
               if (existing) {
