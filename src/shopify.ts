@@ -41,8 +41,39 @@ async function fetchWithRetry(url: string, token: string, maxRetries = 8): Promi
   }
 }
 
+// Per-run cache: one source collection is fetched ONCE no matter how many local
+// collections map to it. Without this, mapping N local handles onto the same
+// parent collection costs N full paginated fetches, which is how a satellite
+// trips Shopify's 429 (a big parent collection is 4+ pages, and Next's data
+// cache refuses to store responses over 2MB, so nothing absorbs the repeat).
+// Keyed by store + collection so a multi-store build cannot cross-contaminate.
+// Cleared per product-fetch run by resetCollectionCache() so a long-lived dev
+// server still picks up parent-store changes on the next revalidate.
+const collectionCache = new Map<string, Promise<ShopifyRestProduct[]>>();
+
+export function resetCollectionCache(): void {
+  collectionCache.clear();
+}
+
+export function fetchAllProductsFromCollection(
+  adapter: SiteAdapter,
+  collectionId: number,
+): Promise<ShopifyRestProduct[]> {
+  const key = `${adapter.store}:${collectionId}`;
+  const cached = collectionCache.get(key);
+  if (cached) return cached;
+
+  // Cache the PROMISE, not the result, so concurrent callers share one fetch.
+  const inFlight = doFetchAllProductsFromCollection(adapter, collectionId).catch((err) => {
+    collectionCache.delete(key); // never cache a failure
+    throw err;
+  });
+  collectionCache.set(key, inFlight);
+  return inFlight;
+}
+
 // Fetch all products from a Shopify collection with cursor pagination
-export async function fetchAllProductsFromCollection(
+async function doFetchAllProductsFromCollection(
   adapter: SiteAdapter,
   collectionId: number,
 ): Promise<ShopifyRestProduct[]> {

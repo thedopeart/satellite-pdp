@@ -8,6 +8,7 @@ import {
   isExcluded,
   mapShopifyProduct,
   purchaseUrl,
+  resetCollectionCache,
 } from './shopify';
 
 export interface ProductSource {
@@ -102,6 +103,11 @@ export function createProductSource(
     }
 
     try {
+      // Fresh cache per run: within a run a source collection is fetched once
+      // (many local handles can share one parent collection), across runs the
+      // data is re-pulled so a dev server does not serve a stale catalog.
+      resetCollectionCache();
+
       const allProducts = new Map<string, SatelliteProduct>();
 
       if (adapter.classifyBy === 'collections' && adapter.collectionMap) {
