@@ -33,9 +33,15 @@ function getToken(adapter: SiteAdapter): string {
 // needs tens of seconds to clear, not a handful.
 async function fetchWithRetry(url: string, token: string, maxRetries = 10): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
+    // cache: 'no-store' deliberately, NOT next.revalidate. These collection
+    // responses run 2-4MB, over Next's data-cache ceiling, so every one logged
+    // "items over 2MB can not be cached" and the oversize path could hand back
+    // a mangled body ("Bad control character in string literal in JSON" on a
+    // payload that parses fine when fetched directly). We have our own per-run
+    // cache below, so Next's adds nothing here but that failure mode.
     const res: Response = await fetch(url, {
       headers: { 'X-Shopify-Access-Token': token },
-      next: { revalidate: 3600 },
+      cache: 'no-store',
     });
 
     if (res.status === 429 && attempt < maxRetries) {
@@ -82,6 +88,38 @@ export function fetchAllProductsFromCollection(
   return inFlight;
 }
 
+/**
+ * Parse a products.json body, tolerating raw control characters inside string
+ * literals. Shopify occasionally emits an unescaped control char (and an
+ * oversize response can arrive mangled), and a single bad byte would otherwise
+ * fail the entire build. Strips only C0 controls that are illegal in JSON
+ * strings, then reparses; if it still will not parse, the error propagates
+ * rather than silently returning a short catalog.
+ */
+async function parseProductsJson(
+  res: Response,
+  url: string,
+): Promise<{ products: ShopifyRestProduct[] }> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    // C0 controls are illegal raw inside a JSON string, and outside one they
+    // are only insignificant whitespace, so removing them cannot change parsed data.
+    const cleaned = text.replace(/[\u0000-\u001F]/g, '');
+    try {
+      const data = JSON.parse(cleaned);
+      console.warn(
+        `⚠️  Shopify returned JSON with illegal control characters (${url.slice(0, 120)}…); ` +
+          `stripped and reparsed ${data.products?.length ?? 0} products.`,
+      );
+      return data;
+    } catch {
+      throw err; // original error is the useful one
+    }
+  }
+}
+
 // Fetch all products from a Shopify collection with cursor pagination
 async function doFetchAllProductsFromCollection(
   adapter: SiteAdapter,
@@ -94,7 +132,7 @@ async function doFetchAllProductsFromCollection(
   while (true) {
     const res = await fetchWithRetry(url, token);
 
-    const data: { products: ShopifyRestProduct[] } = await res.json();
+    const data = await parseProductsJson(res, url);
     allProducts.push(...data.products);
 
     const linkHeader = res.headers.get('Link') || '';
