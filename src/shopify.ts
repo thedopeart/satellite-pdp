@@ -33,15 +33,15 @@ function getToken(adapter: SiteAdapter): string {
 // needs tens of seconds to clear, not a handful.
 async function fetchWithRetry(url: string, token: string, maxRetries = 10): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
-    // cache: 'no-store' deliberately, NOT next.revalidate. These collection
-    // responses run 2-4MB, over Next's data-cache ceiling, so every one logged
-    // "items over 2MB can not be cached" and the oversize path could hand back
-    // a mangled body ("Bad control character in string literal in JSON" on a
-    // payload that parses fine when fetched directly). We have our own per-run
-    // cache below, so Next's adds nothing here but that failure mode.
+    // Must stay cacheable (revalidate, NOT no-store): these product pages are
+    // statically generated, and Next refuses to prerender a route whose fetch
+    // opts out of caching ("Dynamic server usage ... used no-store fetch").
+    // The responses are 2-4MB so Next logs "items over 2MB can not be cached"
+    // and skips storing them; that warning is expected and harmless. Oversize
+    // bodies occasionally arrive mangled, which parseProductsJson absorbs.
     const res: Response = await fetch(url, {
       headers: { 'X-Shopify-Access-Token': token },
-      cache: 'no-store',
+      next: { revalidate: 3600 },
     });
 
     if (res.status === 429 && attempt < maxRetries) {
