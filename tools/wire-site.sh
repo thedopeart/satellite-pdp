@@ -5,7 +5,7 @@
 set -euo pipefail
 SITE="$1"; TAG="${2:-v0.2.2}"
 REF="lionwallart"   # reference site to copy the route + component shims from
-GEN="/Users/thedopeart/Desktop/all-projects/_global/Domain Interlinking/satellite-pdp/tools/gen-products-ts.mjs"
+GEN="/Users/thedopeart/Developer/all-projects/_global/Domain Interlinking/satellite-pdp/tools/gen-products-ts.mjs"
 
 cd "$SITE"
 if [ ! -f lib/pdp-adapter.ts ]; then

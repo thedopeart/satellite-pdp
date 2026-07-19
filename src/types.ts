@@ -77,6 +77,19 @@ export interface SiteAdapter {
   purchaseDomainOverride?: string;
   /** Env var holding the Admin API token. Default: SHOPIFY_ACCESS_TOKEN */
   accessTokenEnv?: string;
+  /**
+   * Curation price cap: products whose CHEAPEST variant exceeds this (USD) are
+   * excluded, so every grid leads with the shared entry tier (89 across
+   * LWA/WCA). Unset = no price filtering.
+   */
+  maxEntryPrice?: number;
+  /** Curation blocklist: parent-store product handles never shown on this satellite. */
+  excludeHandles?: string[];
+  /**
+   * Minimum products a local collection must resolve before the build logs a
+   * MIN-COUNT warning (or fails when SATELLITE_MIN_COUNT_STRICT=1). Default: 12.
+   */
+  minCollectionCount?: number;
 }
 
 /** Minimal site identity the PDP renderer and metadata builder need. */
