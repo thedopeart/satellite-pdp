@@ -13,6 +13,7 @@ import JsonLd from '../components/JsonLd';
 import ProductGallery from '../components/ProductGallery';
 import ProductCard from '../components/ProductCard';
 import SizeSelect from '../components/SizeSelect';
+import AddToCart from '../components/AddToCart';
 import AnimateIn from '../components/AnimateIn';
 
 export interface ProductPageProps {
@@ -30,6 +31,13 @@ export interface ProductPageProps {
   /** Site blog posts related to this product's collections */
   relatedPosts?: RelatedPostRef[];
   cardStyles?: CardStyles;
+  /**
+   * When true, the buy block becomes an on-site add-to-cart instead of an
+   * outbound link. Pass adapter.commerce?.mode === 'cart'. The CartProvider
+   * must be mounted above this page for it to take effect; AddToCart falls
+   * back to the outbound link on its own if it is not.
+   */
+  cartEnabled?: boolean;
 }
 
 function lowestPrice(product: SatelliteProduct): string {
@@ -55,6 +63,7 @@ export default function ProductPage({
   details,
   relatedPosts = [],
   cardStyles,
+  cartEnabled = false,
 }: ProductPageProps) {
   const byHandle = new Map(collections.map((c) => [c.handle, c]));
   const primaryCollection = product.collectionHandles
@@ -135,20 +144,32 @@ export default function ProductPage({
               ))}
             </div>
 
-            <SizeSelect variants={product.variants} />
+            {cartEnabled ? (
+              /* Cart mode: variant choice and the add action are one client
+                 component, since the cart line needs the selected variant id. */
+              <AddToCart
+                variants={product.variants}
+                fallbackUrl={purchaseUrl}
+                fallbackLabel={`Buy on ${site.parentLabel}`}
+              />
+            ) : (
+              <>
+                <SizeSelect variants={product.variants} />
 
-            {/* Buy CTA: purchase happens on the parent store */}
-            <a
-              href={purchaseUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-[var(--foreground)] text-[var(--background)] text-sm hover:opacity-90 transition-opacity"
-            >
-              Buy on {site.parentLabel}
-            </a>
-            <p className="mt-3 text-xs text-[var(--text-muted)]">
-              Checkout, shipping, and returns are handled by {site.parentLabel}.
-            </p>
+                {/* Link mode: purchase happens on the parent store */}
+                <a
+                  href={purchaseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-[var(--foreground)] text-[var(--background)] text-sm hover:opacity-90 transition-opacity"
+                >
+                  Buy on {site.parentLabel}
+                </a>
+                <p className="mt-3 text-xs text-[var(--text-muted)]">
+                  Checkout, shipping, and returns are handled by {site.parentLabel}.
+                </p>
+              </>
+            )}
 
             {/* Site-level product facts */}
             {details && (

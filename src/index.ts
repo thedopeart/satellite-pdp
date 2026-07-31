@@ -28,6 +28,10 @@ export {
   type CartLineInput,
 } from './cart';
 export { useCart, type UseCart } from './useCart';
+export { default as CartProvider, useCartContext, type CartContextValue } from './components/CartProvider';
+export { default as CartDrawer } from './components/CartDrawer';
+export { default as CartButton } from './components/CartButton';
+export { default as AddToCart } from './components/AddToCart';
 
 export { createProductSource, type ProductSource, type ProductSourceOptions } from './products';
 export { purchaseUrl, classifyProduct, isExcluded } from './shopify';
