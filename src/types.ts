@@ -34,6 +34,12 @@ export interface ProductVariant {
   title: string;
   price: string;
   compareAtPrice?: string;
+  /**
+   * Numeric parent-store variant id as a string. Required to build a Storefront
+   * cart line; unused in 'link' commerce mode. Optional because pdpContent
+   * fixtures and older cached payloads predate it.
+   */
+  id?: string;
 }
 
 /**
@@ -98,6 +104,33 @@ export interface SiteAdapter {
    * "portrait-art" includes animal portraits); this trims them to theme.
    */
   collectionRefine?: Record<string, { requireAnyTags?: string[]; excludeTags?: string[] }>;
+  /**
+   * How this satellite sells. Omitted or 'link' keeps the legacy behavior:
+   * the buy CTA is an outbound link to the parent storefront.
+   *
+   * 'cart' gives the satellite its own cart via the Storefront API, so the
+   * shopper only leaves at the hosted checkout step. Requires the products to
+   * be published to the Headless sales channel that issued the token.
+   */
+  commerce?: CommerceConfig;
+}
+
+export interface CommerceConfig {
+  mode: 'link' | 'cart';
+  /**
+   * Storefront API host for the backing store, e.g. "luxurywallartwork.myshopify.com".
+   * One satellite maps to exactly ONE store: a Storefront cart cannot mix
+   * merchandise from two stores, so a site selling both LWA and TDA products
+   * needs those products duplicated into a single backing store.
+   */
+  storefrontDomain: string;
+  /**
+   * Env var holding the PUBLIC Storefront API token. Must be readable in the
+   * browser, so it has to be NEXT_PUBLIC_-prefixed. Storefront tokens are
+   * designed to be public and are scoped to read + cart only.
+   * Default: NEXT_PUBLIC_SHOPIFY_STOREFRONT_TOKEN
+   */
+  storefrontTokenEnv?: string;
 }
 
 /** Minimal site identity the PDP renderer and metadata builder need. */

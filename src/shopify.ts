@@ -12,7 +12,7 @@ export interface ShopifyRestProduct {
   status: string;
   tags: string;
   images: { src: string; alt: string | null }[];
-  variants: { title: string; price: string; compare_at_price: string | null }[];
+  variants: { id: number; title: string; price: string; compare_at_price: string | null }[];
 }
 
 function getToken(adapter: SiteAdapter): string {
@@ -128,6 +128,8 @@ async function doFetchAllProductsFromCollection(
   const token = getToken(adapter);
   const allProducts: ShopifyRestProduct[] = [];
   let url = `https://${adapter.store}.myshopify.com/admin/api/${API_VERSION}/products.json?collection_id=${collectionId}&limit=250&status=active&fields=id,handle,title,status,tags,images,variants`;
+  // `fields=variants` returns each variant whole, including its id, which the
+  // Storefront cart needs as gid://shopify/ProductVariant/<id>.
 
   while (true) {
     const res = await fetchWithRetry(url, token);
@@ -204,6 +206,7 @@ export function mapShopifyProduct(
     alt: firstImage?.alt ?? `${product.title} ${adapter.altSuffix}`,
     images: product.images.map((i) => ({ src: i.src, alt: i.alt })),
     variants: product.variants.map((v) => ({
+      id: v.id != null ? String(v.id) : undefined,
       title: v.title,
       price: v.price,
       compareAtPrice: v.compare_at_price || undefined,
