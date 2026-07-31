@@ -20,6 +20,20 @@ export interface ProductSource {
   getCollectionCounts(): Promise<Record<string, number>>;
   /** Parent-store URL where this handle can be bought (respects per-site handle maps). */
   getPurchaseUrl(handle: string): string;
+  /**
+   * Handles that will actually render a product page: present in pdpContent AND
+   * resolved in the live catalog.
+   *
+   * Both generateStaticParams and sitemap.ts must use this. Deriving either one
+   * from Object.keys(pdpContent) alone is what produced soft 404s: pdpContent is
+   * a static file, the catalog is fetched and then narrowed by collectionRefine,
+   * maxEntryPrice and excludeHandles, so entries routinely outlive their product.
+   * With dynamicParams=false those orphans still got prerendered, and Next
+   * emitted a static not-found page that Vercel served as HTTP 200 while the
+   * sitemap advertised it. Verified on wallartforoffice (153 URLs) and
+   * playingcardart (137) on 2026-07-30.
+   */
+  getRenderableHandles(): Promise<string[]>;
 }
 
 export interface ProductSourceOptions {
@@ -226,5 +240,11 @@ export function createProductSource(
     },
 
     getPurchaseUrl: (handle: string) => purchaseUrl(adapter, handle),
+
+    async getRenderableHandles() {
+      const products = await fetchAllProducts();
+      const live = new Set(products.map((p) => p.handle));
+      return Object.keys(content).filter((handle) => live.has(handle));
+    },
   };
 }

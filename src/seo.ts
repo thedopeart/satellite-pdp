@@ -31,7 +31,15 @@ export function buildProductMetadata(
   };
 }
 
-/** Sitemap entries for the product pages that actually publish (content-backed handles only). */
+/**
+ * Sitemap entries for product pages.
+ *
+ * Pass `await source.getRenderableHandles()`, NOT `Object.keys(pdpContent)`.
+ * pdpContent is static while the catalog is fetched and then narrowed, so its
+ * keys include handles with no live product. Listing those produced sitemaps
+ * advertising soft 404s: 153 URLs on wallartforoffice, 137 on playingcardart,
+ * each returning HTTP 200 with not-found content (2026-07-30).
+ */
 export function productSitemapEntries(
   domain: string,
   handles: string[],
